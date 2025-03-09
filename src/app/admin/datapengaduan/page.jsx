@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getAllDataPengaduanMahasiswa, updatePengaduanStatus } from '@/utils/localStorage';
 import PageHeading from '@/components/PageHeading';
+import Pagination from '@/components/Pagination';
 
 const TABLE_HEAD = [
   'ID',
@@ -32,6 +33,8 @@ const DataPengaduanPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingStatus, setEditingStatus] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Jumlah item per halaman
 
   // Fetch all complaints data
   const refreshData = () => {
@@ -56,6 +59,19 @@ const DataPengaduanPage = () => {
 
     return matchesStatus && matchesType && matchesSearch;
   });
+
+  // Hitung total halaman
+  const totalPages = Math.ceil(filteredPengaduan.length / itemsPerPage);
+
+  // Dapatkan data untuk halaman saat ini
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredPengaduan.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Reset ke halaman pertama saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterType, searchQuery]);
 
   const openModal = (imageUrl) => {
     setSelectedImage(imageUrl);
@@ -86,7 +102,6 @@ const DataPengaduanPage = () => {
     }
   };
 
-  // Rest of the component remains the same...
   return (
     <div className="flex flex-col min-h-screen">
       <PageHeading title="Manajemen Pengaduan" />
@@ -146,7 +161,7 @@ const DataPengaduanPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredPengaduan.map((item) => (
+              {currentItems.map((item) => (
                 <tr key={item.id} className=" odd:bg-[#FDE9CC] even:bg-white ">
                   <td className="px-4 py-3 text-sm">{item.id.slice(0, 8)}</td>
                   <td className="px-4 py-3">
@@ -211,6 +226,17 @@ const DataPengaduanPage = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
 
         {/* Image Modal */}
         {isModalOpen && (
