@@ -45,11 +45,32 @@ const LoginPage = () => {
     );
 
     if (foundUser) {
-      login(foundUser);
-      toast.success(`Login berhasil sebagai ${foundUser.role}`, { toastId });
+      // Pastikan role ada dan valid
+      const role = foundUser.role || '';
+      
+      // Tambahkan role ke data user jika belum ada
+      const userData = {
+        ...foundUser,
+        role: role
+      };
+      
+      login(userData);
+      toast.success(`Login berhasil sebagai ${role || 'pengguna'}`, { toastId });
 
+      // Tentukan path redirect berdasarkan role
+      let redirectPath = '/';
+      if (role === 'admin') {
+        redirectPath = '/admin';
+      } else if (role === 'kasra') {
+        redirectPath = '/kasra';
+      } else if (role === 'mahasiswa') {
+        redirectPath = '/mahasiswa';
+      }
+      
+      console.log('Redirecting to:', redirectPath);
+      
       setTimeout(() => {
-        router.push(`/${foundUser.role}`);
+        router.push(redirectPath);
       }, 1500);
     } else {
       toast.error('Email atau password salah', { toastId });
