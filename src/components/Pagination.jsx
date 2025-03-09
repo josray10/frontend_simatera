@@ -54,13 +54,13 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+    <div className="flex items-center justify-between px-2 py-2 sm:px-4 sm:py-3 bg-white border-t border-gray-200">
       {/* Mobile view */}
       <div className="flex justify-between flex-1 sm:hidden">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="relative inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Sebelumnya
         </button>
@@ -70,17 +70,17 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             type="text"
             value={inputPage}
             onChange={handlePageInputChange}
-            className="w-12 h-8 text-sm border border-gray-300 rounded-md text-center"
+            className="w-8 h-6 text-xs border border-gray-300 rounded-md text-center"
             placeholder={currentPage.toString()}
             aria-label="Pergi ke halaman"
           />
-          <span className="ml-1 text-sm text-gray-500">/ {totalPages}</span>
+          <span className="ml-1 text-xs text-gray-500 flex items-center">/ {totalPages}</span>
         </form>
         
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="relative inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Selanjutnya
         </button>
@@ -99,10 +99,10 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-1.5 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="sr-only">Sebelumnya</span>
-              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </button>
@@ -111,7 +111,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
               page === '...' ? (
                 <span
                   key={`ellipsis-${index}`}
-                  className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300"
+                  className="relative inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300"
                 >
                   ...
                 </span>
@@ -119,7 +119,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                 <button
                   key={page}
                   onClick={() => onPageChange(page)}
-                  className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                  className={`relative inline-flex items-center px-3 py-1.5 text-xs font-medium ${
                     currentPage === page
                       ? 'z-10 bg-orange-50 border-orange-500 text-orange-600'
                       : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
@@ -133,28 +133,28 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-1.5 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="sr-only">Selanjutnya</span>
-              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
             </button>
           </nav>
           
           <form onSubmit={handlePageInputSubmit} className="flex items-center">
-            <span className="mr-2 text-sm text-gray-500">Pergi ke:</span>
+            <span className="mr-1 text-xs text-gray-500">Pergi ke:</span>
             <input
               type="text"
               value={inputPage}
               onChange={handlePageInputChange}
-              className="w-16 h-8 text-sm border border-gray-300 rounded-md text-center"
+              className="w-10 h-6 text-xs border border-gray-300 rounded-md text-center"
               placeholder={currentPage.toString()}
               aria-label="Pergi ke halaman"
             />
             <button
               type="submit"
-              className="ml-2 px-3 py-1 text-sm bg-orange-500 text-white rounded-md hover:bg-orange-600"
+              className="ml-1 px-2 py-1 text-xs bg-orange-500 text-white rounded-md hover:bg-orange-600"
             >
               Pergi
             </button>

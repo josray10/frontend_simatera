@@ -38,38 +38,28 @@ const Sidebar = ({ role, activeMenu, setActiveMenu }) => {
 
   return (
     <>
-      {/* Toggle Button untuk Mobile */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          fixed top-4 left-4 z-50 p-2 rounded-md
-          md:hidden
-          ${isOpen ? 'text-white' : 'text-gray-800'}
-        `}
-      >
-        {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-      </button>
-
-      {/* Overlay untuk Mobile */}
-      {isMobile && isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
       {/* Sidebar */}
       <div
         className={`
-          fixed top-0 left-0 h-full bg-gray-800 text-white
+          fixed top-0 left-0 h-screen bg-gray-800 text-white
           flex flex-col p-5 bg-gradient-sidebar
           transition-transform duration-300 ease-in-out z-40
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0 md:static
-          w-64
+          md:translate-x-0 md:relative md:h-screen
+          w-64 overflow-y-auto
         `}
       >
-        <div className="flex flex-col items-center justify-center mt-8 md:mt-0">
+        {/* Toggle Button untuk Mobile - Dipindahkan ke dalam sidebar */}
+        <div className="flex items-center justify-between mb-4 md:hidden">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-white p-1 hover:bg-gray-700 rounded-md"
+          >
+            <FaTimes size={10} />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center">
           <img
             src="/images/logoasrama.png"
             alt="Logo Asrama ITERA"
@@ -79,14 +69,18 @@ const Sidebar = ({ role, activeMenu, setActiveMenu }) => {
             Dashboard <br /> SIMATERA
           </h2>
         </div>
-        <ul className="py-10">
+
+        <ul className="py-6 flex-grow">
           {getMenuItems().map((item) => (
-            <li key={item.key}>
+            <li key={item.key} className="mb-1">
               <Link
                 href={`/${role}/${item.key}`}
-                onClick={() => isMobile && setIsOpen(false)}
+                onClick={() => {
+                  if (isMobile) setIsOpen(false);
+                  if (setActiveMenu) setActiveMenu(item.name);
+                }}
                 className={`w-full flex items-center gap-2 text-left p-3 rounded-md 
-                  ${activeMenu === item.key
+                  ${activeMenu === item.name
                     ? 'bg-orange-700'
                     : 'hover:bg-orange-700'
                   }
@@ -99,6 +93,24 @@ const Sidebar = ({ role, activeMenu, setActiveMenu }) => {
           ))}
         </ul>
       </div>
+
+      {/* Toggle Button untuk Mobile - Di luar sidebar */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed top-2 left-2 z-50 p-1.5 bg-gray-800 text-white rounded-md md:hidden"
+        >
+          <FaBars size={16} />
+        </button>
+      )}
+
+      {/* Overlay untuk Mobile */}
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
     </>
   );
 };
