@@ -1,7 +1,10 @@
 // app/admin/layout.js
-import Sidebar from '@/components/sidebar';
+'use client';
 
-export default function KasraLayout({ children, params }) {
+import Sidebar from '@/components/sidebar';
+import { withAuth } from '@/utils/AuthContext';
+
+function KasraLayout({ children, params }) {
   // Misal role di sini sudah diketahui dari AuthContext
   const role = 'kasra';
 
@@ -18,3 +21,5 @@ export default function KasraLayout({ children, params }) {
     </div>
   );
 }
+
+export default withAuth(KasraLayout, 'kasra');
