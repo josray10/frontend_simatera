@@ -95,11 +95,11 @@ const SuratBebas = ({ mahasiswa, namaPembina = "Nama Pembina", nipPembina = "NIP
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Program Studi</Text>
-            <Text>: {mahasiswa.programStudi}</Text>
+            <Text>: {mahasiswa.prodi}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Nomor Kamar</Text>
-            <Text>: {mahasiswa.nomorKamar}</Text>
+            <Text>: {mahasiswa.noKamar}</Text>
           </View>
         </View>
         
