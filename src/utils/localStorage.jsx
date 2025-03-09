@@ -27,6 +27,13 @@ export const saveDataPelanggaranAdmin = (data) => {
 export const saveDataMahasiswa = (data) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('mahasiswaData', JSON.stringify(data));
+    
+    // Trigger custom event untuk memperbarui kapasitas kamar
+    try {
+      window.dispatchEvent(new Event('localStorageChange'));
+    } catch (error) {
+      console.error('Error dispatching localStorageChange event:', error);
+    }
   }
 };
 
@@ -51,16 +58,43 @@ export const getAllMahasiswa = () => {
 // Fungsionalitas yang sama bisa diterapkan untuk Kasra, Pelanggaran, dan Pengumuman:
 export const getDataKasra = () => {
   if (typeof window !== 'undefined') {
-    const data = localStorage.getItem('kasraData');
-    return data ? JSON.parse(data) : [];
+    try {
+      const data = localStorage.getItem('kasraData');
+      if (!data) return [];
+      
+      const parsedData = JSON.parse(data);
+      return Array.isArray(parsedData) ? parsedData : [];
+    } catch (error) {
+      console.error('Error getting kasra data:', error);
+      return [];
+    }
   }
   return [];
 }
 
 export const saveDataKasra = (data) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('kasraData', JSON.stringify(data));
+    try {
+      // Pastikan data adalah array
+      const dataToSave = Array.isArray(data) ? data : [];
+      
+      // Simpan ke localStorage
+      localStorage.setItem('kasraData', JSON.stringify(dataToSave));
+      
+      // Trigger custom event untuk memperbarui kapasitas kamar
+      try {
+        window.dispatchEvent(new Event('localStorageChange'));
+      } catch (error) {
+        console.error('Error dispatching localStorageChange event:', error);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving kasra data:', error);
+      return false;
+    }
   }
+  return false;
 };
 
 // Fungsi untuk data pelanggaran per mahasiswa
@@ -78,6 +112,83 @@ export const saveDataPelanggaranMahasiswa = (nim, data) => {
     const nimKey = String(nim); // pastikan nim adalah string
     localStorage.setItem(`pelanggaranData_${nimKey}`, JSON.stringify(data));
   }
+};
+
+// Fungsi untuk data pelanggaran yang menunggu validasi admin
+export const getPendingPelanggaran = () => {
+  if (typeof window !== 'undefined') {
+    const data = localStorage.getItem('pendingPelanggaran');
+    return data ? JSON.parse(data) : [];
+  }
+  return [];
+};
+
+export const savePendingPelanggaran = (data) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pendingPelanggaran', JSON.stringify(data));
+  }
+};
+
+export const addPendingPelanggaran = (pelanggaran) => {
+  if (typeof window !== 'undefined') {
+    const pendingData = getPendingPelanggaran();
+    
+    // Pastikan nim adalah string
+    const nim = String(pelanggaran.nim || '');
+    
+    // Tambahkan status validasi dan timestamp
+    const newPelanggaran = {
+      ...pelanggaran,
+      nim: nim, // Pastikan nim adalah string
+      id: pelanggaran.id || generateId(),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      createdBy: 'kasra'
+    };
+    
+    // Simpan ke daftar pending
+    savePendingPelanggaran([...pendingData, newPelanggaran]);
+    
+    return newPelanggaran;
+  }
+  return null;
+};
+
+export const validatePelanggaran = (pelanggaranId, isApproved) => {
+  if (typeof window !== 'undefined') {
+    const pendingData = getPendingPelanggaran();
+    const pelanggaran = pendingData.find(item => item.id === pelanggaranId);
+    
+    if (!pelanggaran) return false;
+    
+    // Hapus dari daftar pending
+    const updatedPendingData = pendingData.filter(item => item.id !== pelanggaranId);
+    savePendingPelanggaran(updatedPendingData);
+    
+    if (isApproved) {
+      // Jika disetujui, tambahkan ke data pelanggaran mahasiswa
+      const nim = String(pelanggaran.nim); // Pastikan nim adalah string
+      
+      // Ambil data pelanggaran mahasiswa yang ada
+      const existingViolations = getDataPelanggaranMahasiswa(nim);
+      
+      // Tambahkan pelanggaran yang divalidasi
+      const updatedViolations = [
+        ...existingViolations,
+        {
+          ...pelanggaran,
+          status: 'validated',
+          validatedAt: new Date().toISOString()
+        }
+      ];
+      
+      // Simpan kembali ke localStorage
+      saveDataPelanggaranMahasiswa(nim, updatedViolations);
+    }
+    
+    return true;
+  }
+  return false;
 };
 
 // Fungsi untuk data pengaduan per mahasiswa
@@ -137,6 +248,12 @@ export const getAllPelanggaran = () => {
     );
     let allData = [];
     keys.forEach((key) => {
+      // Periksa apakah key mengandung [object Object]
+      if (key.includes('[object Object]')) {
+        console.warn(`Skipping invalid key: ${key}`);
+        return; // Skip key yang tidak valid
+      }
+      
       const data = localStorage.getItem(key);
       if (data) {
         try {
@@ -149,7 +266,9 @@ export const getAllPelanggaran = () => {
                 ...item,
                 storageKey: key, // Tambahkan key sebagai referensi
               }));
-              allData = allData.concat(dataWithKey);
+              // Hanya ambil data yang sudah tervalidasi atau tidak memiliki status
+              const validatedData = dataWithKey.filter(item => !item.status || item.status === 'validated');
+              allData = allData.concat(validatedData);
             }
           } else {
             console.warn(`Data for key ${key} is not a valid JSON array.`);
