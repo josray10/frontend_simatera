@@ -8,6 +8,8 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
   getAllPelanggaran,
+  getPendingPelanggaran,
+  validatePelanggaran,
   getDataPelanggaranMahasiswa,
   saveDataPelanggaranMahasiswa,
 } from '@/utils/localStorage';
@@ -23,48 +25,90 @@ const TABLE_HEAD = [
   'No Kamar',
   'Tanggal Pelanggaran',
   'Keterangan Pelanggaran',
-  'Aksi',
+  'Dibuat Oleh',
+  'Aksi'
 ];
 
-const DataPelanggaranAdmin = () => {
+const DataPelanggaranPage = () => {
   const [pelanggaranList, setPelanggaranList] = useState([]);
+  const [pendingPelanggaranList, setPendingPelanggaranList] = useState([]);
+  const [currentTab, setCurrentTab] = useState('validated');
   const [showModal, setShowModal] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   const [searchQuery, setSearchQuery] = useState('');
+  const itemsPerPage = 10;
 
-  // Saat komponen dimuat, ambil data pelanggaran global (agregat dari semua mahasiswa)
+  // Fetch data pelanggaran
+  const refreshData = () => {
+    const validatedData = getAllPelanggaran();
+    setPelanggaranList(validatedData);
+
+    const pendingData = getPendingPelanggaran();
+    setPendingPelanggaranList(pendingData);
+  };
+
   useEffect(() => {
-    const data = getAllPelanggaran();
-    setPelanggaranList(data);
+    refreshData();
   }, []);
 
   // Filter data berdasarkan pencarian
-  const getFilteredData = () => {
-    let filteredData = pelanggaranList || [];
+  const getFilteredData = (data) => {
+    if (!searchQuery) return data;
     
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filteredData = filteredData.filter((item) => 
-        (item?.nim?.toLowerCase() || '').includes(query) ||
-        (item?.nama?.toLowerCase() || '').includes(query) ||
-        (item?.gedung?.toLowerCase() || '').includes(query) ||
-        (item?.noKamar?.toLowerCase() || '').includes(query) ||
-        (item?.keterangan?.toLowerCase() || '').includes(query)
-      );
-    }
-    
-    return filteredData;
+    const query = searchQuery.toLowerCase();
+    return data.filter(item => 
+      (item.nim?.toLowerCase() || '').includes(query) ||
+      (item.nama?.toLowerCase() || '').includes(query) ||
+      (item.gedung?.toLowerCase() || '').includes(query) ||
+      (item.noKamar?.toLowerCase() || '').includes(query) ||
+      (item.keteranganPelanggaran?.toLowerCase() || '').includes(query)
+    );
   };
 
-  // Hitung total halaman berdasarkan data yang sudah difilter
-  const totalPages = Math.ceil(getFilteredData().length / itemsPerPage);
+  // Data untuk halaman saat ini
+  const filteredValidated = getFilteredData(pelanggaranList);
+  const filteredPending = getFilteredData(pendingPelanggaranList);
+  
+  const totalValidatedPages = Math.ceil(filteredValidated.length / itemsPerPage);
+  const totalPendingPages = Math.ceil(filteredPending.length / itemsPerPage);
+  
+  const currentValidatedItems = filteredValidated.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  
+  const currentPendingItems = filteredPending.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-  // Dapatkan data untuk halaman saat ini dari data yang sudah difilter
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = getFilteredData().slice(indexOfFirstItem, indexOfLastItem);
+  // Reset halaman saat tab atau pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentTab, searchQuery]);
+
+  // Fungsi untuk menyetujui pelanggaran
+  const handleApprove = (id) => {
+    const success = validatePelanggaran(id, true);
+    if (success) {
+      toast.success('Pelanggaran berhasil disetujui');
+      refreshData();
+    } else {
+      toast.error('Gagal menyetujui pelanggaran');
+    }
+  };
+
+  // Fungsi untuk menolak pelanggaran
+  const handleReject = (id) => {
+    const success = validatePelanggaran(id, false);
+    if (success) {
+      toast.success('Pelanggaran berhasil ditolak');
+      refreshData();
+    } else {
+      toast.error('Gagal menolak pelanggaran');
+    }
+  };
 
   // Fungsi untuk memulai proses edit (modal akan muncul dengan data violation yang akan diedit)
   const handleEdit = (pelanggaran) => {
@@ -73,8 +117,8 @@ const DataPelanggaranAdmin = () => {
 
   // Saat menyimpan edit, update violation pada data personal mahasiswa yang bersangkutan
   const handleSaveEdit = () => {
-    if (!showModal.tanggalPelanggaran || !showModal.keterangan) {
-      setErrorMessage('Tanggal dan Keterangan harus diisi!');
+    if (!showModal.tanggalPelanggaran || !showModal.keteranganPelanggaran) {
+      setErrorMessage('Tanggal dan keteranganPelanggaran harus diisi!');
       return;
     }
 
@@ -99,143 +143,289 @@ const DataPelanggaranAdmin = () => {
   };
 
   return (
-    <div className="flex">
-      <div className="flex-1 flex flex-col">
+    <div className="flex flex-col min-h-screen">
         <PageHeading title="Data Pelanggaran" />
-        <div className="flex-1 p-6">
-          {/* Search */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="w-full md:w-64">
-              <Search
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset ke halaman pertama saat mencari
-                }}
-                placeholder="Cari pelanggaran..."
-              />
-            </div>
-          </div>
 
-          <div className="overflow-x-auto rounded-lg border">
+      <div className="p-6">
+        {/* Search dan Filter */}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="w-full sm:w-64">
+            <Search
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari pelanggaran..."
+            />
+          </div>
+        </div>
+
+        {/* Tab untuk memilih antara Pelanggaran Tervalidasi dan Pending */}
+        <div className="mb-4 border-b border-gray-200">
+          <ul className="flex flex-wrap -mb-px">
+            <li className="mr-2">
+              <button
+                className={`inline-block p-4 ${
+                  currentTab === 'validated' 
+                    ? 'text-orange-600 border-b-2 border-orange-600' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setCurrentTab('validated')}
+              >
+                Pelanggaran Tervalidasi
+              </button>
+            </li>
+            <li className="mr-2">
+              <button
+                className={`inline-block p-4 ${
+                  currentTab === 'pending' 
+                    ? 'text-orange-600 border-b-2 border-orange-600' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setCurrentTab('pending')}
+              >
+                Menunggu Validasi
+                {pendingPelanggaranList.length > 0 && (
+                  <span className="ml-2 bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {pendingPelanggaranList.length}
+                  </span>
+                )}
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        {/* Tabel untuk data yang sudah tervalidasi */}
+        {currentTab === 'validated' && (
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
+            <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                  {TABLE_HEAD.map((header) => (
+                    <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+                {currentValidatedItems.length > 0 ? (
+                  currentValidatedItems.map((pelanggaran) => (
+                    <tr key={pelanggaran.id || `validated-${pelanggaran.nim}-${pelanggaran.tanggalPelanggaran}`} className="odd:bg-[#FDE9CC] even:bg-white">
+                      <td className="px-4 py-3 text-sm">{pelanggaran.nim}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.nama}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.gedung || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.noKamar || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.tanggalPelanggaran}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.keteranganPelanggaran || '-'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                          {pelanggaran.createdBy || 'Kasra'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          onClick={() => handleEdit(pelanggaran)}
+                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                      Tidak ada data pelanggaran tervalidasi
+                  </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Tabel untuk data yang menunggu validasi */}
+        {currentTab === 'pending' && (
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  {TABLE_HEAD.map((head) => (
-                    <th
-                      key={head}
-                      className="px-4 py-3 text-left text-xs md:text-sm font-medium text-gray-500 uppercase whitespace-nowrap"
-                    >
-                      {head}
+                  {TABLE_HEAD.map((header) => (
+                    <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {header}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {currentItems.map((pelanggaran) => (
-                  <tr
-                    key={`${pelanggaran.nim}_${pelanggaran.tanggalPelanggaran}`}
-                    className="odd:bg-[#FDE9CC] even:bg-white text-center"
-                  >
-                    <td className="px-4 py-2 text-sm">{pelanggaran.nim}</td>
-                    <td className="px-4 py-2 text-sm">{pelanggaran.nama}</td>
-                    <td className="px-4 py-2 text-sm">{pelanggaran.gedung}</td>
-                    <td className="px-4 py-2 text-sm">{pelanggaran.noKamar}</td>
-                    <td className="px-4 py-2 text-sm">
-                      {dayjs(pelanggaran.tanggalPelanggaran, [
-                        'DD/MM/YYYY',
-                        'YYYY-MM-DD',
-                      ]).format('DD/MM/YYYY')}
-                    </td>
-                    <td className="px-4 py-2 text-sm">
-                      {pelanggaran.keterangan}
-                    </td>
-                    <td className="px-4 py-2 text-sm">
-                      <button
-                        onClick={() => handleEdit(pelanggaran)}
-                        className="p-1 hover:text-blue-600"
-                        aria-label="Edit Pelanggaran"
-                      >
-                        <FiEdit size={20} />
-                      </button>
+                {currentPendingItems.length > 0 ? (
+                  currentPendingItems.map((pelanggaran) => (
+                    <tr key={pelanggaran.id || `pending-${pelanggaran.nim}-${pelanggaran.tanggalPelanggaran}`} className="odd:bg-[#FDE9CC] even:bg-white">
+                      <td className="px-4 py-3 text-sm">{pelanggaran.nim}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.nama}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.gedung || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.noKamar || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.tanggalPelanggaran}</td>
+                      <td className="px-4 py-3 text-sm">{pelanggaran.keteranganPelanggaran || '-'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                          {pelanggaran.createdBy || 'Kasra'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(pelanggaran)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleApprove(pelanggaran.id)}
+                            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                          >
+                            Setujui
+                          </button>
+                          <button
+                            onClick={() => handleReject(pelanggaran.id)}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                      Tidak ada data pelanggaran yang menunggu validasi
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
+        )}
 
-          {/* Pagination */}
-          <div className="mt-4 flex justify-center">
+        {/* Pagination */}
+        {((currentTab === 'validated' && totalValidatedPages > 1) || 
+           (currentTab === 'pending' && totalPendingPages > 1)) && (
+          <div className="mt-6 flex justify-center">
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={currentTab === 'validated' ? totalValidatedPages : totalPendingPages}
               onPageChange={setCurrentPage}
             />
           </div>
+        )}
+      </div>
+      <ToastContainer position="bottom-right" />
 
-          {showModal && (
-            <div
-              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
-              onClick={() => setShowModal(null)}
-            >
-              <div
-                className="bg-white p-5 rounded shadow-lg"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2 className="text-xl font-bold mb-4">
-                  Edit Data Pelanggaran
-                </h2>
-                <input
-                  type="date"
-                  value={showModal.tanggalPelanggaran}
-                  onChange={(e) =>
-                    setShowModal((prev) => ({
-                      ...prev,
-                      tanggalPelanggaran: e.target.value,
-                    }))
-                  }
-                  className="block w-full border p-2 mb-2"
-                  max={new Date().toISOString().split('T')[0]}
-                  required
-                />
-                <input
-                  type="text"
-                  value={showModal.keterangan}
-                  onChange={(e) =>
-                    setShowModal((prev) => ({
-                      ...prev,
-                      keterangan: e.target.value,
-                    }))
-                  }
-                  className="block w-full border p-2 mb-2"
-                  required
-                />
+        {/* Modal untuk edit pelanggaran */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Pelanggaran</h3>
+                
                 {errorMessage && (
-                  <p className="text-red-500 text-sm mb-2">{errorMessage}</p>
+                  <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+                    {errorMessage}
+                  </div>
                 )}
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => setShowModal(null)}
-                    className="bg-gray-400 text-white px-4 py-2 rounded"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={handleSaveEdit}
-                    className="bg-green-500 text-white px-4 py-2 rounded"
-                  >
-                    Simpan
-                  </button>
-                </div>
+                
+                <form className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">NIM</label>
+                    <input
+                      type="text"
+                      value={showModal.nim}
+                      disabled
+                      className="w-full p-2 bg-gray-100 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+                    <input
+                      type="text"
+                      value={showModal.nama}
+                      disabled
+                      className="w-full p-2 bg-gray-100 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gedung</label>
+                      <input
+                        type="text"
+                        value={showModal.gedung || ''}
+                        onChange={(e) => setShowModal({...showModal, gedung: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">No Kamar</label>
+                      <input
+                        type="text"
+                        value={showModal.noKamar || ''}
+                        onChange={(e) => setShowModal({...showModal, noKamar: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Pelanggaran</label>
+                    <input
+                      type="date"
+                      value={showModal.tanggalPelanggaran}
+                      onChange={(e) => setShowModal({...showModal, tanggalPelanggaran: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan Pelanggaran</label>
+                    <textarea
+                      value={showModal.keteranganPelanggaran || ''}
+                      onChange={(e) => setShowModal({...showModal, keteranganPelanggaran: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      rows="3"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(null);
+                        setErrorMessage('');
+                      }}
+                      className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-          )}
-          <ToastContainer />
-        </div>
-      </div>
+          </div>
+        )}
     </div>
   );
 };
 
-export default DataPelanggaranAdmin;
+export default DataPelanggaranPage;
