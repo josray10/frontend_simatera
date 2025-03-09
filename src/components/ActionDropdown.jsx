@@ -5,21 +5,14 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import SuratIzin from './SuratIzin';  
 import SuratBebas from './SuratBebas'; // Import the new SuratBebas component
 
-const ActionDropdown = ({ mahasiswa, handleEdit, handleTambahPelanggaran, handleDelete, showEdit = true, showAddViolation = true, showPrint = true, showDelete = true }) => {
+const ActionDropdown = ({ mahasiswa, handleEdit, handleTambahPelanggaran, handleDelete, showEdit = false, showAddViolation = false, showPrint = false, isMobile = false }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
   const [alasanIzin, setAlasanIzin] = useState('');
   const [tanggalMulai, setTanggalMulai] = useState('');
-  const [tanggalSelesai, setTanggalSelesai] = useState(''); 
-  const [showPreviewSuratBebas, setShowPreviewSuratBebas] = useState(false); // Added state for Surat Bebas preview
-
-  const pdfDownloadLinkRef = useRef();
-
-  if (!mahasiswa) {
-    return null; // Prevent rendering if mahasiswa is undefined or null
-  }
+  const [tanggalSelesai, setTanggalSelesai] = useState('');
+  const [showPreviewSuratBebas, setShowPreviewSuratBebas] = useState(false);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -29,219 +22,207 @@ const ActionDropdown = ({ mahasiswa, handleEdit, handleTambahPelanggaran, handle
       }
     };
 
-    const handleScroll = () => {
-      if (isOpen) {
-        setIsOpen(false);  // Close dropdown when scrolling
-      }
-    };
-
-    const handleResize = () => {
-      if (isOpen) {
-        setIsOpen(false);  // Close dropdown on resize to avoid it being out of view
-      }
-    };
-
     document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isOpen]);
+  const buttonClasses = isMobile
+    ? "p-2 text-gray-600 hover:text-gray-800 focus:outline-none"
+    : "w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900";
 
-  const handleOpenDropdown = () => {
-    setIsOpen(!isOpen);
+  const dropdownClasses = isMobile
+    ? "absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+    : "absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5";
+
+  const handlePrintSuratIzin = () => {
+    setShowForm(true);
+    setIsOpen(false);
   };
 
-  // Fungsi untuk menangani perubahan input pada textarea
-  const handleAlasanChange = (e) => {
-    setAlasanIzin(e.target.value); // Update state dengan input alasan izin
-  };
-  const handleTanggalMulaiChange = (e) => {
-    setTanggalMulai(e.target.value); // Update tanggal mulai izin
-  };
-
-  // Fungsi untuk menangani perubahan tanggal selesai izin
-  const handleTanggalSelesaiChange = (e) => {
-    setTanggalSelesai(e.target.value); // Update tanggal selesai izin
+  const handlePrintSuratBebas = () => {
+    setShowPreviewSuratBebas(true);
+    setIsOpen(false);
   };
 
   const handleFormSubmit = () => {
-    setShowForm(false); // Menutup form setelah submit
+    setShowForm(false);
   };
 
-  // Handle printing Surat Bebas Asrama
-  const handlePrintSuratBebas = () => {
-    setShowPreviewSuratBebas(true); // Show the preview modal
-    setIsOpen(false); // Close the dropdown
-  };
-
-  // Ensure dropdown position is correctly calculated after the component is rendered
-  useLayoutEffect(() => {
-    if (isOpen && dropdownRef.current) {
-      const rect = dropdownRef.current.getBoundingClientRect();
-      const top = rect.bottom + window.scrollY;  // Calculate dropdown's top position
-      let left = rect.left + window.scrollX;   // Calculate dropdown's left position
-
-      // Ensure dropdown does not go beyond the right side of the screen
-      const dropdownWidth = 200; // Estimated dropdown width (adjust as needed)
-      const viewportWidth = window.innerWidth;
-
-      // Check if the dropdown goes out of bounds and adjust position
-      if (left + dropdownWidth > viewportWidth) {
-        left = viewportWidth - dropdownWidth - 10;  // 10px margin from the right
-      }
-
-      // Ensure dropdown does not go beyond the bottom of the screen
-      const dropdownHeight = 250; // Estimated dropdown height (adjust as needed)
-      const viewportHeight = window.innerHeight;
-
-      if (top + dropdownHeight > viewportHeight) {
-        setDropdownPosition({ top: rect.top + window.scrollY - dropdownHeight, left });
-      } else {
-        setDropdownPosition({ top, left });
-      }
-    }
-  }, [isOpen]);
+  const Wrapper = isMobile ? 'div' : 'td';
 
   return (
-    <td className="px-4 py-2 text-sm">
-      <div className="relative" ref={dropdownRef}>
+    <Wrapper className={isMobile ? "relative" : "px-4 py-2 text-sm"}>
+      <div className="relative inline-block text-left" ref={dropdownRef}>
         <button
-          onClick={handleOpenDropdown}
-          className="p-2 hover:bg-gray-100 rounded-full"
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-gray-600 hover:text-gray-800 focus:outline-none"
         >
           <FiMoreVertical className="h-5 w-5" />
         </button>
 
         {isOpen && (
-          <div
-            className="fixed mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
-            style={{
-              top: dropdownPosition.top,
-              left: dropdownPosition.left,
-              maxHeight: '400px',  // Optional: limits the dropdown's height
-              overflowY: 'auto',   // Optional: allows scrolling if content is too long
-            }}
-          >
-            {showEdit && (
-              <button
-                onClick={() => {
-                  handleEdit(mahasiswa.id);
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100"
-              >
-                <FiEdit className="h-5 w-5" />
-                <span>Edit Data</span>
-              </button>
-            )}
+          <div className={dropdownClasses}>
+            <div className="py-1" role="menu">
+              {showEdit && (
+                <button
+                  onClick={() => {
+                    handleEdit(mahasiswa.id);
+                    setIsOpen(false);
+                  }}
+                  className={buttonClasses}
+                  role="menuitem"
+                >
+                  <div className="flex items-center">
+                    <FiEdit className="mr-2 h-4 w-4" />
+                    Edit
+                  </div>
+                </button>
+              )}
 
-            {showAddViolation && (
-              <button
-                onClick={() => {
-                  handleTambahPelanggaran(mahasiswa);
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100"
-              >
-                <ExclamationTriangleIcon className="h-5 w-5" />
-                <span>Tambah Pelanggaran</span>
-              </button>
-            )}
+              {showAddViolation && (
+                <button
+                  onClick={() => {
+                    handleTambahPelanggaran(mahasiswa);
+                    setIsOpen(false);
+                  }}
+                  className={buttonClasses}
+                  role="menuitem"
+                >
+                  <div className="flex items-center">
+                    <ExclamationTriangleIcon className="mr-2 h-4 w-4" />
+                    Tambah Pelanggaran
+                  </div>
+                </button>
+              )}
 
-            {showPrint && (
-              <button
-                onClick={() => setShowForm(true)} // Menampilkan form untuk catatan
-                className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100"
-              >
-                <DocumentTextIcon className="h-5 w-5" />
-                <span>Cetak Surat Izin</span>
-              </button>
-            )}
+              {showPrint && (
+                <>
+                  <button
+                    onClick={handlePrintSuratIzin}
+                    className={buttonClasses}
+                    role="menuitem"
+                  >
+                    <div className="flex items-center">
+                      <DocumentTextIcon className="mr-2 h-4 w-4" />
+                      Cetak Surat Izin
+                    </div>
+                  </button>
 
-            <button
-              onClick={handlePrintSuratBebas} // Use the new handler for Surat Bebas
-              className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-              <span>Cetak Surat Bebas</span>
-            </button>
+                  <button
+                    onClick={handlePrintSuratBebas}
+                    className={buttonClasses}
+                    role="menuitem"
+                  >
+                    <div className="flex items-center">
+                      <DocumentTextIcon className="mr-2 h-4 w-4" />
+                      Cetak Surat Bebas
+                    </div>
+                  </button>
+                </>
+              )}
 
-            {showDelete && (
               <button
                 onClick={() => {
                   handleDelete(mahasiswa.id);
                   setIsOpen(false);
                 }}
-                className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100 text-red-600"
+                className={`${buttonClasses} text-red-600 hover:text-red-700 hover:bg-red-50`}
+                role="menuitem"
               >
-                <TrashIcon className="h-5 w-5" />
-                <span>Hapus</span>
+                <div className="flex items-center">
+                  <TrashIcon className="mr-2 h-4 w-4" />
+                  Hapus
+                </div>
               </button>
-            )}
+            </div>
           </div>
         )}
       </div>
-      
-      {/* Form for Surat Izin */}
+
+      {/* Form Surat Izin */}
       {showForm && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-96">
-            <h2 className="text-2xl font-bold mb-4">Tambah Keterangan Izin</h2>
-            <textarea
-              value={alasanIzin}
-              onChange={handleAlasanChange} // Memanggil handleAlasanChange saat ada perubahan input
-              placeholder="Masukkan alasan izin..."
-              rows="5"
-              className="w-full p-3 border border-gray-300 rounded-md mb-4"
-            ></textarea>
-            <input
-              type="date"
-              value={tanggalMulai}
-              onChange={handleTanggalMulaiChange}
-              className="w-full p-3 border border-gray-300 rounded-md mb-4"
-            />
+            <h2 className="text-2xl font-bold mb-4">Form Surat Izin</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tanggal Mulai
+                </label>
+                <input
+                  type="date"
+                  value={tanggalMulai}
+                  onChange={(e) => setTanggalMulai(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tanggal Selesai
+                </label>
+                <input
+                  type="date"
+                  value={tanggalSelesai}
+                  onChange={(e) => setTanggalSelesai(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
 
-            <input
-              type="date"
-              value={tanggalSelesai}
-              onChange={handleTanggalSelesaiChange}
-              className="w-full p-3 border border-gray-300 rounded-md mb-4"
-            />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Alasan Izin
+                </label>
+                <textarea
+                  value={alasanIzin}
+                  onChange={(e) => setAlasanIzin(e.target.value)}
+                  placeholder="Masukkan alasan izin..."
+                  rows="4"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+            </div>
 
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={handleFormSubmit}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+            <div className="flex justify-end gap-4 mt-6">
+              <PDFDownloadLink
+                document={
+                  <SuratIzin 
+                    mahasiswa={mahasiswa} 
+                    catatan={alasanIzin}
+                    tanggalMulai={tanggalMulai}
+                    tanggalSelesai={tanggalSelesai}
+                  />
+                }
+                fileName={`Surat_Izin_${mahasiswa.nim}.pdf`}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
-                Simpan
-              </button>
+                {({ loading }) => loading ? "Menyiapkan..." : "Download PDF"}
+              </PDFDownloadLink>
               <button
-                onClick={() => setShowForm(false)} // Menutup form
-                className="bg-gray-500 text-white px-4 py-2 rounded"
+                onClick={() => setShowForm(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
               >
-                Batal
+                Tutup
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal for Surat Bebas Preview and Download */}
+      {/* Modal Surat Bebas */}
       {showPreviewSuratBebas && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-4/5 h-4/5 flex flex-col">
             <h2 className="text-2xl font-bold mb-4">Preview Surat Bebas Asrama</h2>
             
             <div className="flex-1 mb-4">
-            <PDFViewer width="100%" height="100%" className="border border-gray-300">
+              <PDFViewer width="100%" height="100%" className="border border-gray-300">
                 <SuratBebas 
                   mahasiswa={mahasiswa}
-                  namaPembina="Dr. Ahmad Syauqi, M.T." 
+                  namaPembina="Dr. Ahmad Syauqi, M.T."
                   nipPembina="NIP. 198507302010121002"
                 />
               </PDFViewer>
@@ -252,18 +233,18 @@ const ActionDropdown = ({ mahasiswa, handleEdit, handleTambahPelanggaran, handle
                 document={
                   <SuratBebas 
                     mahasiswa={mahasiswa}
-                    namaPembina="Dr. Ahmad Syauqi, M.T." 
+                    namaPembina="Dr. Ahmad Syauqi, M.T."
                     nipPembina="NIP. 198507302010121002"
                   />
                 }
                 fileName={`Surat_Bebas_Asrama_${mahasiswa.nim}.pdf`}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 {({ loading }) => loading ? "Menyiapkan..." : "Download PDF"}
               </PDFDownloadLink>
               <button
-                onClick={() => setShowPreviewSuratBebas(false)} 
-                className="bg-gray-500 text-white px-4 py-2 rounded"
+                onClick={() => setShowPreviewSuratBebas(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
               >
                 Tutup
               </button>
@@ -271,28 +252,7 @@ const ActionDropdown = ({ mahasiswa, handleEdit, handleTambahPelanggaran, handle
           </div>
         </div>
       )}
-
-      {/* Setelah form submit, cetak surat dengan catatan yang dimasukkan */}
-      {alasanIzin && (
-        <PDFDownloadLink
-          document={<SuratIzin mahasiswa={mahasiswa} alasanIzin={alasanIzin} />}
-          fileName={`Surat_Izin_${mahasiswa.nim}.pdf`}
-        >{({ loading }) =>
-            loading ? (
-              <button className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100">
-                <DocumentTextIcon className="h-5 w-5" />
-                <span>Cetak Surat Izin</span>
-              </button>
-            ) : (
-              <button className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100">
-                <DocumentTextIcon className="h-5 w-5" />
-                <span>Cetak Surat Izin</span>
-              </button>
-            )
-          }
-        </PDFDownloadLink>
-      )}
-    </td>
+    </Wrapper>
   );
 };
 
