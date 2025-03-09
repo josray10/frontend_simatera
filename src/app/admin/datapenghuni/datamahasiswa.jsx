@@ -24,6 +24,7 @@ import ActionDropdown from '@/components/ActionDropdown';
 import { getDataKamar } from '@/utils/localStorage';
 import Pagination from '@/components/Pagination';
 import Search from '@/components/Search';
+import { v4 as uuidv4 } from 'uuid';
 
 dayjs.extend(customParseFormat);
 const formatTanggal = (tanggal) => {
@@ -112,7 +113,7 @@ const DataMahasiswa = () => {
     nim: '',
     nama: '',
     prodi: '',
-    gedung: 'TB1',
+    gedung: '',
     noKamar: '',
     email: '',
     tempatLahir: '',
@@ -226,28 +227,32 @@ const DataMahasiswa = () => {
   }, [pelanggaran]);
 
   const findAvailableRoom = (jenisKelamin) => {
+    // Gedung untuk laki-laki: TB2 dan TB3
+    // Gedung untuk perempuan: TB1, TB4, dan TB5
+    const gedungLakiLaki = ['TB2', 'TB3'];
+    const gedungPerempuan = ['TB1', 'TB4', 'TB5'];
+    
     // Filter rooms based on gender
+    const isLakiLaki = jenisKelamin && jenisKelamin.toLowerCase() === 'laki-laki';
     const gedungSesuaiGender = availableRooms.filter(kamar => {
-      const isLakiLaki = jenisKelamin.toLowerCase() === 'laki-laki';
       return isLakiLaki ?
-        ['TB2', 'TB3'].includes(kamar.gedung) :  // Laki-laki di TB2 dan TB3
-        ['TB1', 'TB4', 'TB5'].includes(kamar.gedung);  // Perempuan di TB1, TB4, TB5
+        gedungLakiLaki.includes(kamar.gedung) :  // Laki-laki di TB2 dan TB3
+        gedungPerempuan.includes(kamar.gedung);  // Perempuan di TB1, TB4, TB5
     });
 
-    // Find rooms that still have capacity
-    const roomsWithCapacity = gedungSesuaiGender.filter(kamar =>
-      kamar.terisi < kamar.kapasitas
+    // Debug log
+    console.log('Jenis Kelamin:', jenisKelamin);
+    console.log('Is Laki-laki:', isLakiLaki);
+    console.log('Gedung Laki-laki:', gedungLakiLaki);
+    console.log('Gedung Perempuan:', gedungPerempuan);
+    console.log('Gedung yang sesuai:', gedungSesuaiGender.map(k => k.gedung));
+    
+    // Check for available rooms
+    const availableRoomsForGender = gedungSesuaiGender.filter(kamar => 
+      kamar.status !== 'penuh' && kamar.status !== 'perbaikan'
     );
-
-    if (roomsWithCapacity.length === 0) {
-      throw new Error(`Tidak ada kamar tersedia untuk ${jenisKelamin}`);
-    }
-
-    // Prioritize rooms that already have occupants but aren't full
-    const roomWithOccupants = roomsWithCapacity.find(kamar => kamar.terisi > 0);
-    const selectedRoom = roomWithOccupants || roomsWithCapacity[0];
-
-    return selectedRoom;
+    
+    return availableRoomsForGender;
   };
 
 
@@ -273,16 +278,46 @@ const DataMahasiswa = () => {
 
   const handleSubmitAdd = async (e) => {
     e.preventDefault();
-
-    // Validations
-    if (!formData.nim || !formData.nama || !formData.email) {
-      setErrorMessage('NIM, Nama, dan Email wajib diisi!');
+    
+    // Validasi form
+    if (!formData.nim || !formData.nama || !formData.jenisKelamin || !formData.gedung || !formData.noKamar) {
+      setErrorMessage('Semua field harus diisi');
       return;
     }
 
-    const isNIMExist = dataMahasiswa.some((m) => m.nim === formData.nim);
-    if (isNIMExist) {
-      setErrorMessage('NIM sudah terdaftar!');
+    // Validasi NIM unik
+    const existingMahasiswa = dataMahasiswa.find(
+      (mahasiswa) => mahasiswa.nim === formData.nim
+    );
+    
+    if (existingMahasiswa) {
+      setErrorMessage('NIM sudah terdaftar sebagai mahasiswa');
+      return;
+    }
+    
+    // Validasi NIM tidak ada di data kasra
+    try {
+      const dataKasra = JSON.parse(localStorage.getItem('dataKasra') || '[]');
+      const existingKasra = Array.isArray(dataKasra) ? 
+        dataKasra.find(kasra => kasra && kasra.nim === formData.nim) : null;
+      
+      if (existingKasra) {
+        setErrorMessage('NIM sudah terdaftar sebagai kasra. Tidak bisa mendaftar sebagai mahasiswa dengan NIM yang sama.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking kasra data:', error);
+    }
+
+    // Validasi kamar
+    try {
+      const validationResult = validateRoomChange(formData.gedung, formData.noKamar, formData.jenisKelamin, formData.nim);
+      if (!validationResult.valid) {
+        setErrorMessage(validationResult.message);
+        return;
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
       return;
     }
 
@@ -360,56 +395,122 @@ const DataMahasiswa = () => {
     setShowModal(true);
   };
 
-  const validateRoomChange = (newGedung, newNoKamar, jenisKelamin) => {
-    // Cek kesesuaian gedung dengan jenis kelamin
-    const gedungValidasi = jenisKelamin.toLowerCase() === 'laki-laki'
-      ? ['TB1', 'TB2']
-      : ['TB3', 'TB4', 'TB5'];
-
-    if (!gedungValidasi.includes(newGedung)) {
-      throw new Error(`Gedung tidak sesuai dengan jenis kelamin ${jenisKelamin}`);
+  const validateRoomChange = (newGedung, newNoKamar, jenisKelamin, currentNIM = null) => {
+    // Validasi gedung sesuai jenis kelamin
+    const isLakiLaki = jenisKelamin && jenisKelamin.toLowerCase() === 'laki-laki';
+    
+    // Gedung untuk laki-laki: TB2 dan TB3
+    // Gedung untuk perempuan: TB1, TB4, dan TB5
+    const gedungLakiLaki = ['TB2', 'TB3'];
+    const gedungPerempuan = ['TB1', 'TB4', 'TB5'];
+    
+    const gedungValid = isLakiLaki ? 
+      gedungLakiLaki.includes(newGedung) : 
+      gedungPerempuan.includes(newGedung);
+    
+    // Debug log
+    console.log('Validasi Kamar:', { 
+      jenisKelamin, 
+      isLakiLaki, 
+      newGedung, 
+      gedungValid,
+      gedungLakiLaki,
+      gedungPerempuan
+    });
+    
+    if (!gedungValid) {
+      const pesanError = isLakiLaki 
+        ? `Gedung tidak sesuai dengan jenis kelamin Laki-laki. Laki-laki hanya boleh di ${gedungLakiLaki.join(' dan ')}`
+        : `Gedung tidak sesuai dengan jenis kelamin Perempuan. Perempuan hanya boleh di ${gedungPerempuan.join(', ')}`;
+      
+      return { 
+        valid: false, 
+        message: pesanError
+      };
     }
-
-    // Cari kamar yang dipilih
+    
+    // Validasi kamar tersedia
     const selectedRoom = availableRooms.find(
       room => room.gedung === newGedung && room.nomorKamar === newNoKamar
     );
-
-    // Validasi ketersediaan kamar
+    
     if (!selectedRoom) {
-      throw new Error('Kamar tidak ditemukan');
+      return { valid: false, message: 'Kamar tidak ditemukan' };
     }
-
-    if (selectedRoom.terisi >= selectedRoom.kapasitas) {
-      throw new Error('Kamar sudah penuh');
+    
+    if (selectedRoom.status === 'penuh') {
+      // Jika ini adalah edit dan mahasiswa sudah menempati kamar ini, tetap izinkan
+      if (currentNIM) {
+        const currentMahasiswa = dataMahasiswa.find(m => m.nim === currentNIM);
+        if (currentMahasiswa && currentMahasiswa.gedung === newGedung && currentMahasiswa.noKamar === newNoKamar) {
+          return { valid: true };
+        }
+      }
+      return { valid: false, message: 'Kamar sudah penuh' };
     }
-
-    return selectedRoom;
+    
+    if (selectedRoom.status === 'perbaikan') {
+      return { valid: false, message: 'Kamar sedang dalam perbaikan' };
+    }
+    
+    return { valid: true };
   };
 
   // Update handleSubmitEdit dengan validasi NIM
   const handleSubmitEdit = (e) => {
     e.preventDefault();
-
-    // Validasi dasar
-    if (!dataEditMahasiswa.nim || !dataEditMahasiswa.nama || !dataEditMahasiswa.email) {
-      setEditErrorMessage('NIM, Nama, dan Email wajib diisi!');
+    
+    // Validasi form
+    if (!dataEditMahasiswa.nim || !dataEditMahasiswa.nama || !dataEditMahasiswa.jenisKelamin || !dataEditMahasiswa.gedung || !dataEditMahasiswa.noKamar) {
+      setEditErrorMessage('Semua field harus diisi');
       return;
     }
 
-    // Pastikan gedung dan nomor kamar dipilih
-    if (!dataEditMahasiswa.gedung || !dataEditMahasiswa.noKamar) {
-      toast.error('Pilih Gedung dan Nomor Kamar terlebih dahulu');
-      return;
+    // Jika NIM berubah, validasi NIM baru tidak ada di data mahasiswa lain
+    const originalMahasiswa = dataMahasiswa.find(m => m.nim === dataEditMahasiswa.nim);
+    if (dataEditMahasiswa.nim !== dataEditMahasiswa.nim) {
+      const existingMahasiswa = dataMahasiswa.find(
+        (mahasiswa) => mahasiswa.nim === dataEditMahasiswa.nim && mahasiswa.nim !== dataEditMahasiswa.nim
+      );
+      
+      if (existingMahasiswa) {
+        setEditErrorMessage('NIM sudah terdaftar sebagai mahasiswa lain');
+        return;
+      }
+      
+      // Validasi NIM tidak ada di data kasra
+      try {
+        const dataKasra = JSON.parse(localStorage.getItem('dataKasra') || '[]');
+        const existingKasra = Array.isArray(dataKasra) ? 
+          dataKasra.find(kasra => kasra && kasra.nim === dataEditMahasiswa.nim) : null;
+        
+        if (existingKasra) {
+          setEditErrorMessage('NIM sudah terdaftar sebagai kasra. Tidak bisa menggunakan NIM yang sama.');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking kasra data:', error);
+      }
     }
 
-    // Cek NIM duplikat
-    const isNIMExist = dataMahasiswa.some(
-      (m) => m.nim === dataEditMahasiswa.nim && m.id !== dataEditMahasiswa.id
-    );
-    if (isNIMExist) {
-      setEditErrorMessage('NIM sudah terdaftar!');
-      return;
+    // Validasi kamar jika kamar berubah
+    if (dataEditMahasiswa.gedung !== originalMahasiswa.gedung || 
+        dataEditMahasiswa.noKamar !== originalMahasiswa.noKamar) {
+      try {
+        const validationResult = validateRoomChange(
+          dataEditMahasiswa.gedung, 
+          dataEditMahasiswa.noKamar, 
+          dataEditMahasiswa.jenisKelamin,
+          dataEditMahasiswa.nim
+        );
+        if (!validationResult.valid) {
+          setEditErrorMessage(validationResult.message);
+          return;
+        }
+      } catch (error) {
+        setEditErrorMessage(error.message);
+        return;
+      }
     }
 
     try {
@@ -499,10 +600,23 @@ const DataMahasiswa = () => {
       confirmButtonText: 'Ya, hapus!',
     }).then((result) => {
       if (result.isConfirmed) {
-        const filteredData = dataMahasiswa.filter((m) => m.nim !== nim);
-        setDataMahasiswa(filteredData);
-        saveDataMahasiswa(filteredData);
-        Swal.fire('Terhapus!', 'Data berhasil dihapus.', 'success');
+        try {
+          // Filter data dan update state
+          const filteredData = dataMahasiswa.filter((m) => m.nim !== nim);
+          setDataMahasiswa(filteredData);
+          
+          // Update data di localStorage
+          localStorage.setItem('mahasiswaData', JSON.stringify(filteredData));
+          console.log('Data mahasiswa berhasil dihapus dari localStorage', filteredData);
+          
+          // Trigger custom event untuk memperbarui kapasitas kamar
+          window.dispatchEvent(new Event('localStorageChange'));
+          
+          Swal.fire('Terhapus!', 'Data berhasil dihapus.', 'success');
+        } catch (error) {
+          console.error('Error saat menghapus data:', error);
+          Swal.fire('Error!', 'Terjadi kesalahan saat menghapus data.', 'error');
+        }
       }
     });
   };
@@ -522,131 +636,197 @@ const DataMahasiswa = () => {
     }
 
     const fileExtension = file.name.split('.').pop().toLowerCase();
-    if (fileExtension !== 'csv' && fileExtension !== 'xlsx') {
-      toast.error('Hanya file CSV atau XLSX yang diperbolehkan.');
-      return;
-    }
+    if (fileExtension === 'csv' || fileExtension === 'xlsx') {
+      const reader = new FileReader();
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const binaryString = event.target.result;
-        const workbook = XLSX.read(binaryString, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        let data = XLSX.utils.sheet_to_json(sheet);
+      reader.onload = (event) => {
+        try {
+          const binaryString = event.target.result;
+          const workbook = XLSX.read(binaryString, { type: 'binary' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          let data = XLSX.utils.sheet_to_json(sheet);
 
-        // Format tanggal
-        const formatDate = (excelDate) => {
-          if (typeof excelDate === 'number') {
-            return dayjs(new Date((excelDate - 25569) * 86400 * 1000)).format('DD/MM/YYYY');
-          } else if (typeof excelDate === 'string') {
-            const parsedDate = dayjs(excelDate, ['DD/MM/YYYY', 'D/M/YYYY', 'YYYY-MM-DD'], true);
-            return parsedDate.isValid() ? parsedDate.format('DD/MM/YYYY') : 'Invalid Date';
+          if (data.length === 0) {
+            toast.error('File Excel tidak memiliki data!');
+            return;
           }
-          return 'Invalid Date';
-        };
 
-        // Ambil data kamar dari localStorage
-        const dormRooms = JSON.parse(localStorage.getItem('dormRooms') || '[]');
+          // Validasi format data minimal
+          const requiredFields = ['NIM', 'Nama', 'Jenis Kelamin'];
+          const isValidFormat = data.every(item => 
+            requiredFields.every(field => item[field] !== undefined)
+          );
 
-        // Pisahkan mahasiswa berdasarkan jenis kelamin
-        const dataLakiLaki = data.filter(item => item['Jenis Kelamin'] === 'Laki-laki');
-        const dataPerempuan = data.filter(item => item['Jenis Kelamin'] === 'Perempuan');
+          if (!isValidFormat) {
+            toast.error('Format Excel tidak valid! Pastikan memiliki kolom: NIM, Nama, Jenis Kelamin');
+            return;
+          }
 
-        // Cari kamar untuk laki-laki di TB2 dan TB3
-        const kamarLakiLaki = dormRooms.filter(kamar =>
-          ['TB2', 'TB3'].includes(kamar.gedung) && kamar.terisi < kamar.kapasitas
-        );
+          // Cek duplikasi dengan data yang sudah ada
+          const existingNIMs = dataMahasiswa.map(mahasiswa => mahasiswa.nim);
+          const duplicateEntries = data.filter(item => existingNIMs.includes(String(item.NIM)));
+          
+          if (duplicateEntries.length > 0) {
+            const duplicateNIMs = duplicateEntries.map(item => item.NIM).join(', ');
+            toast.error(`Terdapat ${duplicateEntries.length} data dengan NIM yang sudah ada: ${duplicateNIMs}`);
+            return;
+          }
 
-        // Cari kamar untuk perempuan di TB1, TB4, TB5
-        const kamarPerempuan = dormRooms.filter(kamar =>
-          ['TB1', 'TB4', 'TB5'].includes(kamar.gedung) && kamar.terisi < kamar.kapasitas
-        );
+          // Cek duplikasi dengan data kasra
+          try {
+            const dataKasraRaw = localStorage.getItem('kasraData');
+            if (dataKasraRaw) {
+              const dataKasra = JSON.parse(dataKasraRaw);
+              if (Array.isArray(dataKasra)) {
+                const existingKasraNIMs = dataKasra.map(kasra => kasra.nim);
+                const duplicateWithKasra = data.filter(item => existingKasraNIMs.includes(String(item.NIM)));
+                
+                if (duplicateWithKasra.length > 0) {
+                  const duplicateNIMs = duplicateWithKasra.map(item => item.NIM).join(', ');
+                  toast.error(`Terdapat ${duplicateWithKasra.length} data dengan NIM yang sudah terdaftar sebagai kasra: ${duplicateNIMs}`);
+                  return;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error checking kasra data:', error);
+          }
 
-        // Proses mahasiswa laki-laki
-        const processedLakiLaki = dataLakiLaki.map((item, index) => {
-          const roomIndex = index % kamarLakiLaki.length;
-          const selectedRoom = kamarLakiLaki[roomIndex];
-
-          // Update occupancy
-          selectedRoom.terisi += 1;
-
-          return {
-            id: String(item.NIM),
-            nim: String(item.NIM),
-            nama: item.Nama,
-            prodi: item.Prodi,
-            gedung: selectedRoom.gedung,
-            noKamar: selectedRoom.nomorKamar,
-            email: item.Email,
-            tempatLahir: item['Tempat Lahir'],
-            tanggalLahir: formatDate(item['Tanggal Lahir']),
-            asal: item.Asal,
-            status: 'Aktif Tinggal',
-            golonganUKT: item['Golongan UKT'],
-            jenisKelamin: item['Jenis Kelamin'],
-            password: String(item.NIM) || 'mahasiswa123',
-            role: 'mahasiswa',
+          // Format tanggal
+          const formatDate = (excelDate) => {
+            if (!excelDate) return '';
+            if (typeof excelDate === 'number') {
+              return dayjs(new Date((excelDate - 25569) * 86400 * 1000)).format('DD/MM/YYYY');
+            } else if (typeof excelDate === 'string') {
+              const parsedDate = dayjs(excelDate, ['DD/MM/YYYY', 'D/M/YYYY', 'YYYY-MM-DD'], true);
+              return parsedDate.isValid() ? parsedDate.format('DD/MM/YYYY') : '';
+            }
+            return '';
           };
-        });
 
-        // Proses mahasiswa perempuan
-        const processedPerempuan = dataPerempuan.map((item, index) => {
-          const roomIndex = index % kamarPerempuan.length;
-          const selectedRoom = kamarPerempuan[roomIndex];
+          // Ambil data kamar dari localStorage
+          const dormRooms = JSON.parse(localStorage.getItem('dormRooms') || '[]');
 
-          // Update occupancy
-          selectedRoom.terisi += 1;
+          // Pisahkan mahasiswa berdasarkan jenis kelamin
+          const dataLakiLaki = data.filter(item => item['Jenis Kelamin'] === 'Laki-laki');
+          const dataPerempuan = data.filter(item => item['Jenis Kelamin'] === 'Perempuan');
 
-          return {
-            id: String(item.NIM),
-            nim: String(item.NIM),
-            nama: item.Nama,
-            prodi: item.Prodi,
-            gedung: selectedRoom.gedung,
-            noKamar: selectedRoom.nomorKamar,
-            email: item.Email,
-            tempatLahir: item['Tempat Lahir'],
-            tanggalLahir: formatDate(item['Tanggal Lahir']),
-            asal: item.Asal,
-            status: 'Aktif Tinggal',
-            golonganUKT: item['Golongan UKT'],
-            jenisKelamin: item['Jenis Kelamin'],
-            password: String(item.NIM) || 'mahasiswa123',
-            role: 'mahasiswa',
-          };
-        });
+          // Gedung untuk laki-laki: TB2 dan TB3
+          // Gedung untuk perempuan: TB1, TB4, dan TB5
+          const gedungLakiLaki = ['TB2', 'TB3'];
+          const gedungPerempuan = ['TB1', 'TB4', 'TB5'];
 
-        // Gabungkan data
-        const processedData = [...processedLakiLaki, ...processedPerempuan];
+          // Cari kamar untuk laki-laki di TB2 dan TB3
+          const kamarLakiLaki = dormRooms.filter(kamar =>
+            gedungLakiLaki.includes(kamar.gedung) && kamar.status !== 'penuh' && kamar.status !== 'perbaikan'
+          );
 
-        // Update localStorage dengan kamar yang sudah diupdate
-        localStorage.setItem('dormRooms', JSON.stringify(dormRooms));
+          // Cari kamar untuk perempuan di TB1, TB4, TB5
+          const kamarPerempuan = dormRooms.filter(kamar =>
+            gedungPerempuan.includes(kamar.gedung) && kamar.status !== 'penuh' && kamar.status !== 'perbaikan'
+          );
 
-        // Update state
-        const newData = [...dataMahasiswa, ...processedData];
-        setDataMahasiswa(newData);
-        saveDataMahasiswa(newData);
-        setAvailableRooms(dormRooms);
+          if (dataLakiLaki.length > 0 && kamarLakiLaki.length === 0) {
+            toast.error('Tidak ada kamar tersedia untuk mahasiswa laki-laki');
+            return;
+          }
 
-        // Reset file input
-        setFile(null);
-        setFileName('Pilih file...');
+          if (dataPerempuan.length > 0 && kamarPerempuan.length === 0) {
+            toast.error('Tidak ada kamar tersedia untuk mahasiswa perempuan');
+            return;
+          }
 
-        toast.success('Data mahasiswa berhasil diupload dan kamar telah diassign!');
+          // Proses mahasiswa laki-laki
+          const processedLakiLaki = dataLakiLaki.map((item, index) => {
+            const roomIndex = index % kamarLakiLaki.length;
+            const selectedRoom = kamarLakiLaki[roomIndex];
 
-      } catch (error) {
-        console.error('Error dalam upload file:', error);
-        toast.error('Terjadi kesalahan saat memproses file');
-      }
-    };
+            // Update occupancy
+            selectedRoom.terisi = (selectedRoom.terisi || 0) + 1;
+            if (selectedRoom.terisi >= selectedRoom.kapasitas) {
+              selectedRoom.status = 'penuh';
+            }
 
-    reader.onerror = (error) => {
-      console.error('File reading error:', error);
-      toast.error('Gagal membaca file');
-    };
+            return {
+              id: uuidv4(),
+              nim: String(item.NIM),
+              nama: item.Nama,
+              jenisKelamin: item['Jenis Kelamin'],
+              prodi: item.Prodi || '',
+              gedung: selectedRoom.gedung,
+              noKamar: selectedRoom.nomorKamar,
+              email: item.Email || '',
+              tempatLahir: item['Tempat Lahir'] || '',
+              tanggalLahir: formatDate(item['Tanggal Lahir']),
+              asal: item.Asal || '',
+              noHP: item['No HP'] || '',
+              status: 'Aktif Tinggal',
+              password: String(item.NIM) || 'mahasiswa123',
+              createdAt: new Date().toISOString()
+            };
+          });
 
-    reader.readAsBinaryString(file);
+          // Proses mahasiswa perempuan
+          const processedPerempuan = dataPerempuan.map((item, index) => {
+            const roomIndex = index % kamarPerempuan.length;
+            const selectedRoom = kamarPerempuan[roomIndex];
+
+            // Update occupancy
+            selectedRoom.terisi = (selectedRoom.terisi || 0) + 1;
+            if (selectedRoom.terisi >= selectedRoom.kapasitas) {
+              selectedRoom.status = 'penuh';
+            }
+
+            return {
+              id: uuidv4(),
+              nim: String(item.NIM),
+              nama: item.Nama,
+              jenisKelamin: item['Jenis Kelamin'],
+              prodi: item.Prodi || '',
+              gedung: selectedRoom.gedung,
+              noKamar: selectedRoom.nomorKamar,
+              email: item.Email || '',
+              tempatLahir: item['Tempat Lahir'] || '',
+              tanggalLahir: formatDate(item['Tanggal Lahir']),
+              asal: item.Asal || '',
+              noHP: item['No HP'] || '',
+              status: 'Aktif Tinggal',
+              password: String(item.NIM) || 'mahasiswa123',
+              createdAt: new Date().toISOString()
+            };
+          });
+
+          // Gabungkan data
+          const processedData = [...processedLakiLaki, ...processedPerempuan];
+
+          // Update localStorage dengan kamar yang sudah diupdate
+          localStorage.setItem('dormRooms', JSON.stringify(dormRooms));
+
+          // Update state
+          const updatedData = [...dataMahasiswa, ...processedData];
+          setDataMahasiswa(updatedData);
+          saveDataMahasiswa(updatedData);
+          setAvailableRooms(dormRooms);
+
+          // Reset file input
+          setFile(null);
+          setFileName('');
+          
+          toast.success(`Berhasil mengupload ${processedData.length} data mahasiswa dengan otomatisasi kamar!`);
+        } catch (error) {
+          console.error('Error processing Excel file:', error);
+          toast.error('Terjadi kesalahan saat memproses file Excel');
+        }
+      };
+
+      reader.onerror = () => {
+        toast.error('Terjadi kesalahan saat membaca file');
+      };
+
+      reader.readAsBinaryString(file);
+    } else {
+      toast.error('Hanya file CSV atau XLSX yang diperbolehkan.');
+    }
   };
 
 
@@ -657,269 +837,344 @@ const DataMahasiswa = () => {
   return (
     <>
       {showForm ? (
-        <div className="flex flex-col justify-center items-center mt-5 px-4 sm:px-0">
-          <h1 className="text-3xl font-extrabold mb-6 text-center text-gray-800">
-            Form Data Mahasiswa
-          </h1>
-          <div className="flex flex-col bg-white shadow-lg rounded-xl divide-y w-full max-w-4xl">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold mb-5 text-gray-800">Tambah Mahasiswa Baru</h2>
-              {errorMessage && (
-                <p className="text-red-500 font-semibold mb-3">{errorMessage}</p>
-              )}
-            </div>
-            <form onSubmit={handleSubmitAdd} className="pt-5 grid grid-cols-1 sm:grid-cols-2 gap-6 p-6">
-              {/* NIM */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">NIM</label>
-                <input
-                  type="text"
-                  name="nim"
-                  value={formData.nim}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-
-              {/* Nama */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Nama</label>
-                <input
-                  type="text"
-                  name="nama"
-                  value={formData.nama}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-
-              {/* Program Studi */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Program Studi</label>
-                <input
-                  type="text"
-                  name="prodi"
-                  value={formData.prodi}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* Jenis Kelamin */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Jenis Kelamin</label>
-                <select
-                  name="jenisKelamin"
-                  value={formData.jenisKelamin}
-                  onChange={(e) => {
-                    const selectedGender = e.target.value;
-                    setFormData({
-                      ...formData,
-                      jenisKelamin: selectedGender,
-                      // Reset gedung when gender changes
-                      gedung: '',
-                      noKamar: ''
-                    });
-                  }}
-                  className="select select-bordered w-full p-3 text-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-400"
-                >
-                  {['Laki-laki', 'Perempuan'].map((jenisKelamin) => (
-                    <option key={jenisKelamin} value={jenisKelamin}>
-                      {jenisKelamin}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Gedung */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Gedung</label>
-                <select
-                  name="gedung"
-                  value={formData.gedung}
-                  onChange={handleInputChange}
-                  className="select select-bordered w-full p-3 text-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-400"
-                >
-                  <option value="">Pilih Gedung</option>
-                  {formData.jenisKelamin === 'Laki-laki'
-                    ? ['TB2', 'TB3'].map((gedung) => (
-                      <option key={gedung} value={gedung}>
-                        {gedung}
-                      </option>
-                    ))
-                    : ['TB1', 'TB4', 'TB5'].map((gedung) => (
-                      <option key={gedung} value={gedung}>
-                        {gedung}
-                      </option>
-                    ))
-                  }
-                </select>
-              </div>
-
-              {/* No Kamar */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Nomor Kamar</label>
-                <select
-                  name="noKamar"
-                  value={formData.noKamar}
-                  onChange={(e) => {
-                    const selectedRoom = availableRooms.find(room => room.nomorKamar === e.target.value);
-                    if (selectedRoom) {
-                      setFormData({
-                        ...formData,
-                        noKamar: selectedRoom.nomorKamar,
-                        gedung: selectedRoom.gedung
-                      });
-                    }
-                  }}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={!formData.gedung} // Disable jika gedung belum dipilih
-                >
-                  <option value="">Pilih Kamar</option>
-                  {availableRooms
-                    .filter(room => {
-                      // Filter kamar berdasarkan gedung yang dipilih dan ketersediaan
-                      return room.gedung === formData.gedung &&
-                        room.status === 'tersedia' &&
-                        room.terisi < room.kapasitas;
-                    })
-                    .sort((a, b) => a.nomorKamar.localeCompare(b.nomorKamar))
-                    .map(room => (
-                      <option
-                        key={room.nomorKamar}
-                        value={room.nomorKamar}
-                      >
-                        {`${room.nomorKamar} (${room.terisi}/${room.kapasitas})`}
-                      </option>
-                    ))
-                  }
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {!formData.gedung
-                    ? "Pilih gedung terlebih dahulu"
-                    : "Menampilkan kamar yang tersedia di gedung yang dipilih"}
+        <div className="flex flex-col justify-center items-center mt-5 px-4 sm:px-6 lg:px-8">
+          <div className="w-full max-w-5xl">
+            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+              {/* Form Header */}
+              <div className="bg-gradient-to-r from-orange-500 to-orange-300 p-4 sm:p-6">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+                  Form Data Mahasiswa
+                </h1>
+                <p className="mt-1 text-sm text-white/80">
+                  Silakan isi data mahasiswa dengan lengkap dan benar
                 </p>
+                {errorMessage && (
+                  <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                    <p className="text-sm font-medium">{errorMessage}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Email */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
+              {/* Form Content */}
+              <form onSubmit={handleSubmitAdd} className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Section: Informasi Pribadi */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Informasi Pribadi
+                    </h3>
+                    
+                    {/* NIM */}
+                    <div >
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        NIM <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="nim"
+                        value={formData.nim}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                        placeholder="Masukkan NIM"
+                      />
+                    </div>
 
-              {/* Tempat Lahir */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Tempat Lahir</label>
-                <input
-                  type="text"
-                  name="tempatLahir"
-                  value={formData.tempatLahir}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
+                    {/* Nama */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nama Lengkap <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="nama"
+                        value={formData.nama}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                        placeholder="Masukkan nama lengkap"
+                      />
+                    </div>
 
-              {/* Tanggal Lahir */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Tanggal Lahir</label>
-                <input
-                  type="date"
-                  name="tanggalLahir"
-                  value={formData.tanggalLahir}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  max={new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
+                    {/* Email */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
 
-              {/* Asal */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Asal</label>
-                <input
-                  type="text"
-                  name="asal"
-                  value={formData.asal}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
+                    {/* Program Studi */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Program Studi <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="prodi"
+                        value={formData.prodi}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
 
-              {/* Golongan UKT */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Golongan UKT</label>
-                <select
-                  name="golonganUKT"
-                  value={formData.golonganUKT}
-                  onChange={handleInputChange}
-                  className="select select-bordered w-full p-3 text-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-400"
-                >
-                  {['1', '2', '3', '4', '5', '6', '7', '8'].map((golonganUKT) => (
-                    <option key={golonganUKT} value={golonganUKT}>
-                      {golonganUKT}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                    {/* Tempat & Tanggal Lahir */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tempat Lahir <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="tempatLahir"
+                          value={formData.tempatLahir}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tanggal Lahir <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          name="tanggalLahir"
+                          value={formData.tanggalLahir}
+                          onChange={handleInputChange}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                    </div>
 
-              {/* Status Tinggal */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Status Tinggal</label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="select select-bordered w-full p-3 text-gray-700 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-400"
-                >
-                  {['Aktif Tinggal', 'Checkout'].map((statusTinggal) => (
-                    <option key={statusTinggal} value={statusTinggal}>
-                      {statusTinggal}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                    {/* Asal */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Asal <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="asal"
+                        value={formData.asal}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
 
-              {/* Password */}
-              <div className="form-group">
-                <label className="block text-gray-700 text-sm font-medium mb-2">Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="input input-bordered w-full p-3 text-gray-700 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
+                  {/* Section: Informasi Asrama */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Informasi Asrama
+                    </h3>
 
-              {/* Buttons */}
-              <div className="col-span-2 flex justify-center gap-6 mt-6">
-                <button
-                  type="submit"
-                  className="bg-orange-500 text-white hover:bg-orange-600 py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all"
-                >
-                  Tambah Mahasiswa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="bg-gray-500 text-white hover:bg-gray-600 py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all"
-                >
-                  Batal
-                </button>
-              </div>
-            </form>
+                    {/* Jenis Kelamin */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Jenis Kelamin <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="jenisKelamin"
+                        value={formData.jenisKelamin}
+                        onChange={(e) => {
+                          const selectedGender = e.target.value;
+                          setFormData({
+                            ...formData,
+                            jenisKelamin: selectedGender,
+                            gedung: '',
+                            noKamar: ''
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Pilih Jenis Kelamin</option>
+                        {['Laki-laki', 'Perempuan'].map((jenisKelamin) => (
+                          <option key={jenisKelamin} value={jenisKelamin}>
+                            {jenisKelamin}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Gedung */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Gedung <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="gedung"
+                        value={formData.gedung}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Pilih Gedung</option>
+                        {formData.jenisKelamin === 'Laki-laki'
+                          ? ['TB2', 'TB3'].map((gedung) => (
+                            <option key={gedung} value={gedung}>
+                              {gedung}
+                            </option>
+                          ))
+                          : ['TB1', 'TB4', 'TB5'].map((gedung) => (
+                            <option key={gedung} value={gedung}>
+                              {gedung}
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {formData.jenisKelamin === 'Laki-laki' ? 'TB2 dan TB3 untuk mahasiswa' : 'TB1, TB4, dan TB5 untuk mahasiswi'}
+                      </p>
+                    </div>
+
+                    {/* No Kamar */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nomor Kamar <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="noKamar"
+                        value={formData.noKamar}
+                        onChange={(e) => {
+                          const selectedRoom = availableRooms.find(room => room.nomorKamar === e.target.value);
+                          if (selectedRoom) {
+                            setFormData({
+                              ...formData,
+                              noKamar: selectedRoom.nomorKamar,
+                              gedung: selectedRoom.gedung
+                            });
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        disabled={!formData.gedung}
+                        required
+                      >
+                        <option value="">Pilih Kamar</option>
+                        {availableRooms
+                          .filter(room => {
+                            return room.gedung === formData.gedung &&
+                              room.status === 'tersedia' &&
+                              room.terisi < room.kapasitas;
+                          })
+                          .sort((a, b) => a.nomorKamar.localeCompare(b.nomorKamar))
+                          .map(room => (
+                            <option
+                              key={room.nomorKamar}
+                              value={room.nomorKamar}
+                            >
+                              {`${room.nomorKamar} (${room.terisi}/${room.kapasitas})`}
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {!formData.gedung
+                          ? "Pilih gedung terlebih dahulu"
+                          : "Format: Nomor Kamar (Jumlah Penghuni/Kapasitas)"}
+                      </p>
+                    </div>
+
+                    {/* Golongan UKT */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Golongan UKT <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="golonganUKT"
+                        value={formData.golonganUKT}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      >
+                        {['1', '2', '3', '4', '5', '6', '7', '8'].map((golonganUKT) => (
+                          <option key={golonganUKT} value={golonganUKT}>
+                            Golongan {golonganUKT}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Status Tinggal */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Status Tinggal <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      >
+                        {['Aktif Tinggal', 'Checkout'].map((statusTinggal) => (
+                          <option key={statusTinggal} value={statusTinggal}>
+                            {statusTinggal}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                      <p className="mt-1 text-sm text-gray-500">
+                        Default: NIM atau 'mahasiswa123'
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full sm:w-auto px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Menyimpan...
+                      </span>
+                    ) : (
+                      'Tambah Mahasiswa'
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="w-full sm:w-auto px-6 py-3 bg-gray-100 text-gray-800 font-medium rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       ) : (
@@ -970,11 +1225,13 @@ const DataMahasiswa = () => {
                   <span>Tambah Mahasiswa</span>
                 </button>
               </div>
+
+      
             </div>
           </div>
 
           {/* Table Section */}
-          <div className="overflow-x-auto rounded-lg border">
+          <div className=" hidden overflow-x-auto md:block rounded-lg border">
               <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -1029,6 +1286,66 @@ const DataMahasiswa = () => {
               </tbody>
             </table>
           </div>
+
+           {/* Mobile Cards View */}
+      <div className="md:hidden space-y-3">
+        {currentItems.length > 0 ? (
+          currentItems.map((mahasiswa) => (
+            <div key={mahasiswa.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm text-gray-800">{mahasiswa.nama}</h3>
+                  <p className="text-xs text-gray-500 mt-1">NIM: {mahasiswa.nim}</p>
+                </div>
+                <div className="flex items-center">
+                  <ActionDropdown
+                    mahasiswa={mahasiswa}
+                    handleEdit={handleEdit}
+                    handleTambahPelanggaran={handleTambahPelanggaran}
+                    handleDelete={handleDelete}
+                    showEdit={true}
+                    showAddViolation={true}
+                    showPrint={true}
+                    isMobile={true}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p className="text-gray-500">Program Studi</p>
+                  <p className="font-medium">{mahasiswa.prodi}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Status</p>
+                  <p className="font-medium">{mahasiswa.status}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Gedung/Kamar</p>
+                  <p className="font-medium">{mahasiswa.gedung}/{mahasiswa.noKamar}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Golongan UKT</p>
+                  <p className="font-medium">{mahasiswa.golonganUKT}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Jenis Kelamin</p>
+                  <p className="font-medium">{mahasiswa.jenisKelamin}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="font-medium break-all">{mahasiswa.email}</p>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-4 text-sm text-gray-500">
+            Tidak ada data mahasiswa
+          </div>
+        )}
+      </div>
+
 
           {/* Pagination */}
           <Pagination
@@ -1396,9 +1713,9 @@ const DataMahasiswa = () => {
                 <div className="mb-4">
                   <label className="block mb-2">Keterangan</label>
                   <textarea
-                    value={formData.keterangan}
+                    value={formData.keteranganPelanggaran}
                     onChange={(e) =>
-                      setFormData({ ...formData, keterangan: e.target.value })
+                      setFormData({ ...formData, keteranganPelanggaran: e.target.value })
                     }
                     className="resize-none w-full px-3 py-2 border border-gray-300 rounded"
                     required

@@ -16,22 +16,25 @@ const KelolaData = () => {
   ];
 
   return (
-    <div className="flex bg-[#F5F6FA]">
-      {/* Dropdown Pilihan */}
+    <div className="flex flex-col bg-[#F5F6FA] min-h-screen">
+      {/* Header dan Dropdown Pilihan */}
       <div className="flex-1 flex flex-col">
-        <PageHeading title="Data Mahasiswa" />
-        <div className="mt-4">
-          {' '}
-          {/* Tambahin margin atas */}
+        <PageHeading title={categories} />
+        
+        {/* Dropdown dengan margin responsif */}
+        <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
           <Select
-            className="w-full ml-5"
+            className="w-full md:w-64 lg:w-72"
             selectedValue={categories}
             valueOption={valueOption}
             onChange={(e) => setCategories(e.target.value)}
           />
         </div>
+        
         {/* Konten yang dipilih */}
-        {categories === 'Data Mahasiswa' ? <DataMahasiswa /> : <DataKasra />}
+        <div className="flex-1">
+          {categories === 'Data Mahasiswa' ? <DataMahasiswa /> : <DataKasra />}
+        </div>
       </div>
     </div>
   );
