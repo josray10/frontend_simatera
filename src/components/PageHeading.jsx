@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/utils/AuthContext';
+import { FaBars, FaSignOutAlt } from 'react-icons/fa';
 
 export default function PageHeading({ title }) {
   const router = useRouter();
@@ -11,33 +12,49 @@ export default function PageHeading({ title }) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isLogoutPromptVisible, setIsLogoutPromptVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const menuRef = useRef(null);
+  const profileRef = useRef(null);
+
+  // Menandai bahwa komponen sudah di-mount di client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle click outside dropdown
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    if (!mounted) return;
+
+    function handleClickOutside(event) {
+      if (
+        isMenuVisible && 
+        menuRef.current && 
+        !menuRef.current.contains(event.target) &&
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
+      ) {
         setIsMenuVisible(false);
       }
-    };
-
-    if (isMenuVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
     }
 
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMenuVisible]);
+  }, [isMenuVisible, mounted]);
 
   // Protect from unauthorized access
   useEffect(() => {
+    if (!mounted) return;
+    
     if (!user) {
       router.replace('/auth');
     }
-  }, [user, router]);
+  }, [user, router, mounted]);
 
-  const toggleMenu = () => setIsMenuVisible(!isMenuVisible);
+  const toggleMenu = () => {
+    setIsMenuVisible(!isMenuVisible);
+  };
 
   const handleLogout = () => {
     setIsLogoutPromptVisible(true);
@@ -47,15 +64,8 @@ export default function PageHeading({ title }) {
   const confirmLogout = async () => {
     try {
       setIsLoading(true);
-
-      // Gunakan logout dari AuthContext
       await authLogout();
-
-      // Clear local states
       setIsLogoutPromptVisible(false);
-      setIsMenuVisible(false);
-
-      // Redirect dengan replace untuk mencegah navigasi back
       router.replace('/auth');
     } catch (error) {
       console.error('Logout error:', error);
@@ -66,85 +76,85 @@ export default function PageHeading({ title }) {
 
   const cancelLogout = () => setIsLogoutPromptVisible(false);
 
-  // Loading state saat initial render
-  if (!user) {
+  // Tampilkan skeleton loader saat loading atau belum di-mount
+  if (!mounted || !user) {
     return (
-      <div className="p-6 shadow-lg bg-white flex justify-between w-full items-center">
-        <span className="text-3xl text-[#828282] font-bold">{title}</span>
-        <div className="animate-pulse bg-gray-200 h-10 w-32 rounded"></div>
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 shadow-lg bg-white flex justify-between w-full items-center">
+        <div className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-[#828282] font-bold truncate ml-10 sm:ml-0">
+          {title}
+        </div>
+        <div className="animate-pulse bg-gray-200 h-6 sm:h-8 md:h-10 w-20 sm:w-24 md:w-32 rounded"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 shadow-lg bg-white flex justify-between w-full items-center relative z-10">
-      <span className="text-3xl text-[#828282] font-bold">{title}</span>
+    <>
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 shadow-lg bg-white flex justify-between w-full items-center">
+        {/* Judul dengan margin-left untuk memberikan ruang pada ikon hamburger di mobile */}
+        <span className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-[#828282] font-bold truncate ml-10 sm:ml-0">{title}</span>
 
-      <div className="flex gap-5 items-center">
-        <p className="text-gray-600">
-          {user.email} <span className="text-gray-400">({user.role})</span>
-        </p>
-        <div className="relative">
-          <Image
-            src="/images/adminprofile.png"
-            alt="Profile"
-            width={50}
-            height={50}
-            className="cursor-pointer rounded-full hover:opacity-80 transition-opacity"
-            role="button"
-            onClick={toggleMenu}
-          />
-
-          {/* Dropdown Menu */}
-          {isMenuVisible && (
-            <div
-              ref={menuRef}
-              className="absolute right-0 mt-2 bg-white shadow-lg rounded-md w-48 py-1 border border-gray-100"
+        <div className="flex gap-2 sm:gap-3 md:gap-5 items-center">
+          {/* Email dan role - tampil di semua ukuran layar */}
+          <p className="text-gray-600 text-xs sm:text-sm md:text-base truncate max-w-[100px] sm:max-w-[150px] md:max-w-[200px] lg:max-w-none">
+            {user?.email || 'User'} <span className="text-gray-400">({user?.role || 'guest'})</span>
+          </p>
+          
+          {/* Profile dropdown */}
+          <div className="relative">
+            <button 
+              ref={profileRef}
+              onClick={toggleMenu}
+              className="cursor-pointer rounded-full hover:opacity-80 transition-opacity focus:outline-none"
+              aria-label="Toggle profile menu"
             >
-              <button
-                className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                onClick={handleLogout}
-                disabled={isLoading}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                Logout
-              </button>
-            </div>
-          )}
+              <Image
+                src="/images/adminprofile.png"
+                alt="Profile"
+                width={40}
+                height={40}
+                className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full"
+              />
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Dropdown Menu - Rendered outside the header */}
+      {isMenuVisible && (
+        <div 
+          ref={menuRef}
+          className="fixed right-4 top-12 sm:right-6 sm:top-14 md:right-8 md:top-16 bg-white shadow-xl rounded-md w-36 sm:w-40 md:w-48 py-1 border border-gray-100 z-[500]"
+        >
+          <button
+            className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 text-xs sm:text-sm"
+            onClick={handleLogout}
+            disabled={isLoading}
+          >
+            <FaSignOutAlt className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+            Logout
+          </button>
+        </div>
+      )}
+
       {/* Logout Confirmation Modal */}
       {isLogoutPromptVisible && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Konfirmasi Logout</h3>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-[9999] p-4">
+          <div className="bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow-lg max-w-sm w-full">
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2 sm:mb-3 md:mb-4">Konfirmasi Logout</h3>
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 md:mb-6">
               Apakah Anda yakin ingin keluar dari sistem?
             </p>
-            <div className="flex gap-4 justify-end">
+            <div className="flex gap-2 sm:gap-3 md:gap-4 justify-end">
               <button
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                 onClick={cancelLogout}
                 disabled={isLoading}
               >
                 Batal
               </button>
               <button
-                className={`px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2 ${
+                className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 bg-red-600 text-white text-xs sm:text-sm rounded-md hover:bg-red-700 transition-colors flex items-center gap-1 sm:gap-2 ${
                   isLoading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 onClick={confirmLogout}
@@ -153,7 +163,7 @@ export default function PageHeading({ title }) {
                 {isLoading ? (
                   <>
                     <svg
-                      className="animate-spin h-4 w-4 text-white"
+                      className="animate-spin h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -182,6 +192,6 @@ export default function PageHeading({ title }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
