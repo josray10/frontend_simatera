@@ -49,6 +49,8 @@ export default function AdminLayout({ children, params }) {
       setActiveMenu('Data Pembayaran');
     } else if (pathname.includes('/admin/datapengaduan')) {
       setActiveMenu('Data Pengaduan');
+    } else if (pathname.includes('/admin/settings')) {
+      setActiveMenu('Pengaturan');
     }
   }, [pathname, mounted]);
 

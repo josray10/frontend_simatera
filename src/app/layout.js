@@ -16,6 +16,12 @@ export const metadata = {
   title: 'Dashboard Simatera',
   description: 'Sistem Informasi Asrama Mahasiswa ITERA',
   manifest: '/manifest.json',
+icons: {
+    // Path ikon ini benar karena file ada di public/icons/
+    icon: '/icons/simatera-192x192.png',
+    shortcut: ['/icons/simatera-192x192.png'],
+    apple: '/icons/simatera-192x192.png',
+  }
 };
 
 export default function RootLayout({ children }) {
