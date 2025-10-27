@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: 'Dashboard Simatera',
   description: 'Sistem Informasi Asrama Mahasiswa ITERA',
-  manifest: '/public/manifest.json',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }) {
