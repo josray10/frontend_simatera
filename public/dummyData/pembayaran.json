@@ -1,0 +1,7 @@
+{
+  "120140073": { "statusPembayaran": "Lunas", "periode": "Ganjil 2025/2026", "nominal": 1200000, "metodePembayaran": "Transfer Bank Mandiri", "tanggalPembayaran": "2025-07-15", "catatan": "Pembayaran awal tahun ajaran." },
+  "120140100": { "statusPembayaran": "Belum Lunas", "periode": "Ganjil 2025/2026", "nominal": 1200000, "metodePembayaran": "-", "tanggalPembayaran": "-", "catatan": "-" },
+  "120110001": { "statusPembayaran": "Lunas", "periode": "Ganjil 2025/2026", "nominal": 0, "metodePembayaran": "N/A (Kasra)", "tanggalPembayaran": "-", "catatan": "Kasra tidak bayar" },
+  "120110002": { "statusPembayaran": "Lunas", "periode": "Ganjil 2025/2026", "nominal": 0, "metodePembayaran": "N/A (Kasra)", "tanggalPembayaran": "-", "catatan": "Kasra tidak bayar" },
+  "120110003": { "statusPembayaran": "Lunas", "periode": "Ganjil 2025/2026", "nominal": 0, "metodePembayaran": "N/A (Kasra)", "tanggalPembayaran": "-", "catatan": "Kasra tidak bayar" }
+}

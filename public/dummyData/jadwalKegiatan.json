@@ -1,0 +1,12 @@
+[
+  {
+    "id": "keg-001", "judul": "Orientasi Penghuni Asrama Baru",
+    "deskripsi": "Kegiatan orientasi wajib bagi seluruh mahasiswa baru penghuni asrama.",
+    "tanggal": "2025-08-20", "file": null, "createdAt": "2025-08-10T10:00:00Z"
+  },
+  {
+    "id": "keg-002", "judul": "Lomba Kebersihan Antar Kamar",
+    "deskripsi": "Ayo tunjukkan kekompakan dan kebersihan kamarmu! Pemenang akan mendapatkan hadiah menarik.",
+    "tanggal": "2025-09-05", "file": null, "createdAt": "2025-08-25T11:00:00Z"
+  }
+]

@@ -1,0 +1,8 @@
+{
+    "120140073": [
+        { "id": "pgd-001", "nim": "120140073", "nama": "Jossy Raya Gopasda Saragih", "gedung": "TB2", "noKamar": "2203", "tanggalPengaduan": "2025-10-22", "keteranganPengaduan": "AC di kamar tidak berfungsi.", "status": "resolved", "createdBy": "kasra", "createdAt": "2025-10-22T10:00:00Z" }
+    ],
+    "120140100": [
+        { "id": "pgd-002", "nim": "120140100", "nama": "Siti Nurhaliza", "gedung": "TB1", "noKamar": "1104", "tanggalPengaduan": "2025-10-23", "keteranganPengaduan": "Kamar bocor saat hujan.", "status": "in progress", "createdBy": "kasra", "createdAt": "2025-10-23T11:30:00Z" }
+    ]
+}

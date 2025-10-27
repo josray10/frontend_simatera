@@ -1,0 +1,8 @@
+{
+  "120140073": [
+    { "id": "plg-001", "nim": "120140073", "nama": "Jossy Raya Gopasda Saragih", "gedung": "TB2", "noKamar": "2203", "tanggalPelanggaran": "2025-09-10", "keteranganPelanggaran": "Terlambat pulang melewati jam malam.", "status": "validated", "createdBy": "kasra", "createdAt": "2025-09-11T08:00:00Z" }
+  ],
+  "120140100": [
+    { "id": "plg-002", "nim": "120140100", "nama": "Siti Nurhaliza", "gedung": "TB1", "noKamar": "1101", "tanggalPelanggaran": "2025-10-05", "keteranganPelanggaran": "Memasak di dalam kamar.", "status": "validated", "createdBy": "kasra", "createdAt": "2025-10-06T14:00:00Z" }
+  ]
+}

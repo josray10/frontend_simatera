@@ -1,0 +1,15 @@
+[
+    {
+        "id": 1,
+        "email": "admin@itera.ac.id",
+        "password": "admin123",
+        "role": "admin"
+    },
+
+    {
+        "id": 2,
+        "email": "admin2@itera.ac.id",
+        "password": "admin321",
+        "role": "admin"
+    }
+]

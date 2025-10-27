@@ -1,0 +1,53 @@
+[
+    {
+        "id": "120110001",
+        "nim": "120110001",
+        "nama": "Kasra Satu",
+        "prodi": "Fisika",
+        "gedung": "TB3",
+        "noKamar": "3101",
+        "email": "kasra1@itera.ac.id",
+        "tempatLahir": "Medan",
+        "tanggalLahir": "2001-08-20",
+        "asal": "Medan",
+        "golonganUKT": 2,
+        "status": "Aktif Tinggal",
+        "jenisKelamin": "Laki-laki",
+        "password": "passwordksr1",
+        "role": "kasra"
+    },
+    {
+        "id": "12011002",
+        "nim": "12011002",
+        "nama": "Kasra Dua",
+        "prodi": "Kimia",
+        "gedung": "TB4",
+        "noKamar": "4202",
+        "email": "kasra2@itera.ac.id",
+        "tempatLahir": "Medan",
+        "tanggalLahir": "2001-08-20",
+        "asal": "Medan",
+        "golonganUKT": 2,
+        "status": "Aktif Tinggal",
+        "jenisKelamin": "Laki-laki",
+        "password": "passwordksr2",
+        "role": "kasra"
+    },
+    {
+        "id": "12011003",
+        "nim": "12011003",
+        "nama": "Kasra Tiga",
+        "prodi": "Biologi",
+        "gedung": "TB5",
+        "noKamar": "5303",
+        "email": "kasra3@itera.ac.id",
+        "tempatLahir": "Medan",
+        "tanggalLahir": "2001-08-20",
+        "asal": "Medan",
+        "golonganUKT": 2,
+        "status": "Aktif Tinggal",
+        "jenisKelamin": "Laki-laki",
+        "password": "passwordksr3",
+        "role": "kasra"
+    }
+]

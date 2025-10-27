@@ -1,0 +1,52 @@
+[
+    {
+        "id": 1101,
+        "gedung": "TB1",
+        "lantai": 1,
+        "noKamar": "1101",
+        "status": "Tersedia",
+        "kapasitas": 4,
+        "terisi": 0,
+        "keterangan": ""
+    },
+    {
+        "id": 2101,
+        "gedung": "TB2",
+        "lantai": 1,
+        "noKamar": "2101",
+        "status": "Tersedia",
+        "kapasitas": 4,
+        "terisi": 0,
+        "keterangan": ""
+    },
+    {
+        "id": 3101,
+        "gedung": "TB3",
+        "lantai": 1,
+        "noKamar": "3101",
+        "status": "Tersedia",
+        "kapasitas": 4,
+        "terisi": 0,
+        "keterangan": ""
+    },
+    {
+        "id": 4101,
+        "gedung": "TB4",
+        "lantai": 1,
+        "noKamar": "4101",
+        "status": "Tersedia",
+        "kapasitas": 4,
+        "terisi": 0,
+        "keterangan": ""
+    },
+    {
+        "id": 5101,
+        "gedung": "TB5",
+        "lantai": 1,
+        "noKamar": "5101",
+        "status": "Tersedia",
+        "kapasitas": 4,
+        "terisi": 0,
+        "keterangan": ""
+    }
+]

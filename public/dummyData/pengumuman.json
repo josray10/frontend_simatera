@@ -1,0 +1,14 @@
+[
+  {
+    "id": "pum-001", "judul_pengumuman": "Selamat Datang Mahasiswa Baru Asrama 2025",
+    "isi_pengumuman": "Selamat datang di Asrama ITERA! Kegiatan orientasi akan dilaksanakan pada tanggal...",
+    "tanggal_pengumuman": "2025-08-01", "file_data_url": null, "file_name": null,
+    "creator": { "name": "Admin Asrama" }, "created_at": "2025-08-01T08:00:00Z", "updated_at": "2025-08-01T08:00:00Z"
+  },
+  {
+    "id": "pum-002", "judul_pengumuman": "Jadwal Piket Kebersihan Gedung TB1",
+    "isi_pengumuman": "Berikut terlampir jadwal piket kebersihan untuk Gedung TB1.",
+    "tanggal_pengumuman": "2025-08-15", "file_data_url": null, "file_name": null,
+    "creator": { "name": "Admin Asrama" }, "created_at": "2025-08-15T14:00:00Z", "updated_at": "2025-08-15T14:00:00Z"
+  }
+]

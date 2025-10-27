@@ -1,0 +1,37 @@
+[
+    {
+        "id": "120140073",
+        "nim": "120140073",
+        "nama": "Jossy Raya Gopasda Saragih",
+        "prodi": "Teknik Informatika",
+        "gedung": "TB2",
+        "noKamar": "2203",
+        "email": "jossy.120140073@itera.ac.id",
+        "tempatLahir": "Medan",
+        "tanggalLahir": "2002-10-09",
+        "asal": "Medan",
+        "golonganUKT": 4,
+        "status": "Aktif Tinggal",
+        "jenisKelamin": "Laki-laki",
+        "password": "jossy123",
+        "role": "mahasiswa"
+    },
+
+    {
+        "id": "120140100",
+        "nim": "120140100",
+        "nama": "Siti Nurhaliza",
+        "prodi": "Teknik Informatika",
+        "gedung": "TB1",
+        "noKamar": "1104",
+        "email": "siti.120140100@itera.ac.id",
+        "tempatLahir": "Jakarta",
+        "tanggalLahir": "2002-11-09",
+        "asal": "Jakarta",
+        "golonganUKT": 4,
+        "status": "Aktif Tinggal",
+        "jenisKelamin": "Perempuan",
+        "password": "siti123",
+        "role": "mahasiswa"
+    }
+]
