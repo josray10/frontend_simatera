@@ -80,9 +80,9 @@ const LoginPage = () => {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center bg-orange-100">
-            {/* ... (kode JSX background dan logo) ... */}
+
             <img
-                src="images/headerbackgrounditera.png"
+                src="/images/headerbackgrounditera.png"
                 alt="Background"
                 className="absolute inset-0 w-full h-full object-cover opacity-40"
             />
