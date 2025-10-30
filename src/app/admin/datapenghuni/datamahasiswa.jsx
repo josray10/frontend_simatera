@@ -158,7 +158,7 @@ const DataMahasiswa = () => {
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => {
-    const dormRooms = JSON.parse(localStorage.getItem('dormRooms') || '[]');
+    const dormRooms = getDataKamar();
     setAvailableRooms(dormRooms);
   }, []);
 
@@ -748,7 +748,7 @@ const DataMahasiswa = () => {
             }
 
             return {
-              id: uuidv4(),
+              id: NIM,
               nim: String(item.NIM),
               nama: item.Nama,
               jenisKelamin: item['Jenis Kelamin'],

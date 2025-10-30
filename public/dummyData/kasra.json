@@ -29,7 +29,7 @@
         "asal": "Medan",
         "golonganUKT": 2,
         "status": "Aktif Tinggal",
-        "jenisKelamin": "Laki-laki",
+        "jenisKelamin": "Perempuan",
         "password": "passwordksr2",
         "role": "kasra"
     },
@@ -46,7 +46,7 @@
         "asal": "Medan",
         "golonganUKT": 2,
         "status": "Aktif Tinggal",
-        "jenisKelamin": "Laki-laki",
+        "jenisKelamin": "Perempuan",
         "password": "passwordksr3",
         "role": "kasra"
     }
