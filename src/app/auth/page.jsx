@@ -89,7 +89,7 @@ const LoginPage = () => {
             <div className="relative z-10 bg-white p-8 shadow-lg rounded-lg w-full max-w-md">
                 <div className="flex justify-center">
                 <img
-                    src="images/iteralogo.png"
+                    src="/images/iteralogo.png"
                     alt="ITERA Logo"
                     className="h-20 mb-6"
                 />
